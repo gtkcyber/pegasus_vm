@@ -63,7 +63,7 @@ echo "==> Installing XFCE desktop, browser, and guest agents"
 apt-get update -y
 apt-get upgrade -y
 apt-get install -y \
-  xubuntu-core^ \
+  xubuntu-desktop-minimal \
   firefox \
   spice-vdagent \
   qemu-guest-agent \

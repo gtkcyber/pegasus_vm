@@ -126,7 +126,7 @@ source "qemu" "amd64" {
   output_directory = "output/amd64"
   vm_name          = "course-amd64.qcow2"
 
-  headless       = true
+  headless       = false
   http_directory = "http"
   boot_wait      = "5s"
   boot_command   = local.boot_command
@@ -134,7 +134,7 @@ source "qemu" "amd64" {
   communicator     = "ssh"
   ssh_username     = var.ssh_username
   ssh_password     = var.ssh_password
-  ssh_timeout      = "45m"
+  ssh_timeout      = "20m"
   shutdown_command = "echo '${var.ssh_password}' | sudo -S -E poweroff"
 
   qemuargs = [
@@ -167,8 +167,10 @@ source "qemu" "arm64" {
 
   headless       = true
   http_directory = "http"
-  boot_wait      = "5s"
-  boot_command   = local.boot_command
+  # The arm64 "virt" machine reaches GRUB more slowly than BIOS amd64 (UEFI POST
+  # under hvf), so give it longer before typing the boot command.
+  boot_wait    = "20s"
+  boot_command = local.boot_command
 
   communicator     = "ssh"
   ssh_username     = var.ssh_username
@@ -176,8 +178,16 @@ source "qemu" "arm64" {
   ssh_timeout      = "45m"
   shutdown_command = "echo '${var.ssh_password}' | sudo -S -E poweroff"
 
+  # The "virt" machine has NO default display or input device. Without a GPU the
+  # firmware/GRUB console goes only to serial (invisible to VNC) and Packer's
+  # boot_command lands in the QEMU monitor instead of GRUB. Add a virtio GPU so
+  # GRUB renders on VNC, plus a USB keyboard/tablet so the typed keys reach it.
   qemuargs = [
-    ["-cpu", local.cpu_arm64]
+    ["-cpu", local.cpu_arm64],
+    ["-device", "virtio-gpu-pci"],
+    ["-device", "qemu-xhci"],
+    ["-device", "usb-kbd"],
+    ["-device", "usb-tablet"]
   ]
 }
 
