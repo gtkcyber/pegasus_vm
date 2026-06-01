@@ -1,0 +1,12 @@
+# Packer build outputs and caches
+output/
+packer_cache/
+.packer.d/
+*.qcow2
+*.vmdk
+*.ova
+*.box
+
+# Logs / crash dumps
+crash.log
+*.log

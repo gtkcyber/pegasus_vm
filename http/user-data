@@ -1,0 +1,30 @@
+#cloud-config
+# Ubuntu Server autoinstall (subiquity / NoCloud). Produces a MINIMAL base:
+# the desktop, Python, and JupyterLab are layered on afterwards by Packer
+# running scripts/provision-course-vm.sh, so this file stays small and stable.
+autoinstall:
+  version: 1
+  locale: en_US.UTF-8
+  keyboard:
+    layout: us
+  ssh:
+    install-server: true
+    allow-pw: true
+  storage:
+    layout:
+      name: lvm
+  identity:
+    hostname: course-vm
+    # user / password = student / student
+    username: student
+    password: "$6$hwCcXZLHo6SLTwgZ$bKgs8WA2s/pMjr54uIX1ADZCFP..ii096r1FmK9o08ZAwkEWDdDO0UAl/nGO4CT3MRVIzagJ7XOf0Q6Wr0wNy/"
+  packages:
+    - openssh-server
+  user-data:
+    # Passwordless sudo so Packer's shutdown_command and provisioner run clean.
+    runcmd:
+      - echo 'student ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/90-student
+      - chmod 440 /etc/sudoers.d/90-student
+  late-commands:
+    - echo 'student ALL=(ALL) NOPASSWD:ALL' > /target/etc/sudoers.d/90-student
+    - chmod 440 /target/etc/sudoers.d/90-student

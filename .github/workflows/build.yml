@@ -1,0 +1,49 @@
+name: build-course-vm
+
+# Builds each architecture on a native runner so neither one is emulated.
+# Requires hardware acceleration (/dev/kvm) on the runner; on runners without
+# it, builds fall back to slow TCG emulation. Trigger manually.
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+            accel_amd64: kvm
+            accel_arm64: none
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            accel_amd64: none
+            accel_arm64: kvm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install QEMU + Packer
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system qemu-utils
+          curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp.gpg
+          echo "deb [signed-by=/usr/share/keyrings/hashicorp.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+          sudo apt-get update && sudo apt-get install -y packer
+
+      - name: Build ${{ matrix.arch }}
+        run: |
+          packer init .
+          packer build \
+            -only="course.qemu.${{ matrix.arch }}" \
+            -var "accel_amd64=${{ matrix.accel_amd64 }}" \
+            -var "accel_arm64=${{ matrix.accel_arm64 }}" \
+            -var "edk2_arm64_code=/usr/share/AAVMF/AAVMF_CODE.fd" \
+            -var "edk2_arm64_vars=/usr/share/AAVMF/AAVMF_VARS.fd" \
+            .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: course-vm-${{ matrix.arch }}
+          path: output/${{ matrix.arch }}/*
