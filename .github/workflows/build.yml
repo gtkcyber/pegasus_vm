@@ -27,12 +27,29 @@ jobs:
       - name: Install QEMU + Packer
         run: |
           sudo apt-get update
-          sudo apt-get install -y qemu-system qemu-utils
+          # qemu-efi-aarch64 provides /usr/share/AAVMF/*.fd for the arm64 guest;
+          # ovmf provides x86 UEFI. Both are harmless on the other arch's runner.
+          sudo apt-get install -y qemu-system qemu-utils qemu-efi-aarch64 ovmf
           curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp.gpg
           echo "deb [signed-by=/usr/share/keyrings/hashicorp.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
           sudo apt-get update && sudo apt-get install -y packer
 
+      - name: Enable KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          sudo chmod 0666 /dev/kvm || true
+
+      - name: Preflight
+        run: |
+          ls -l /dev/kvm || echo "no /dev/kvm"
+          ls -l /usr/share/AAVMF/ || echo "no AAVMF firmware"
+          qemu-system-$(echo ${{ matrix.arch }} | sed 's/amd64/x86_64/;s/arm64/aarch64/') --version | head -1
+
       - name: Build ${{ matrix.arch }}
+        env:
+          PACKER_LOG: "1"
         run: |
           packer init .
           packer build \

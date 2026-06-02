@@ -126,7 +126,9 @@ source "qemu" "amd64" {
   output_directory = "output/amd64"
   vm_name          = "course-amd64.qcow2"
 
-  headless       = false
+  # Headless so it runs on display-less CI runners; Packer still drives the
+  # install over VNC (it prints a vnc:// address to watch a local build).
+  headless       = true
   http_directory = "http"
   boot_wait      = "5s"
   boot_command   = local.boot_command
