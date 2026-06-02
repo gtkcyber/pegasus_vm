@@ -89,6 +89,14 @@ fi
 echo "==> Installing uv to /usr/local/bin"
 curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
 
+# uv downloads a managed CPython for the env. By default it lands in root's home
+# (/root/.local/share/uv/python, mode 700), so the venv's bin/python symlinks
+# into a directory the student user cannot traverse -> "Permission denied" when
+# they run the kernel. Install it to a world-readable system location instead.
+export UV_PYTHON_INSTALL_DIR=/opt/uv/python
+mkdir -p "${UV_PYTHON_INSTALL_DIR}"
+chmod -R a+rX /opt/uv
+
 echo "==> Creating shared course env at ${ENV_DIR} (Python ${PY_VERSION})"
 /usr/local/bin/uv venv --python "${PY_VERSION}" "${ENV_DIR}"
 /usr/local/bin/uv pip install --python "${ENV_DIR}/bin/python" --upgrade pip
@@ -98,6 +106,8 @@ echo "==> Registering Jupyter kernel: ${KERNEL_NAME}"
 "${ENV_DIR}/bin/python" -m ipykernel install \
   --name "${KERNEL_NAME}" --display-name "${KERNEL_DISPLAY}"
 chown -R "${STUDENT_USER}:${STUDENT_USER}" "${ENV_DIR}"
+# Make the uv-managed interpreter readable/executable by the student user.
+chmod -R a+rX /opt/uv
 
 #############################################
 # Launcher: start-jupyter + desktop icon

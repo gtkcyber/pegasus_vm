@@ -50,6 +50,26 @@ The ISO checksum variables use Packer's `file:` form, so they read the live
 `SHA256SUMS` from the Ubuntu mirror. If a build fails at the checksum step,
 confirm the exact ISO filename on the release page and update `iso_url_*`.
 
+## Test the built image locally (Apple Silicon)
+
+To boot the arm64 image in a native window straight from QEMU (no UTM needed),
+after a successful `make arm64`:
+
+```
+./scripts/run-arm64.sh        # opens the VM in a window, auto-logs into XFCE
+```
+
+It boots from `output/arm64/course-arm64.qcow2` using a writable copy of the
+UEFI varstore Packer produced. **Start** the VM by running the script; **stop**
+it by shutting down from inside (Log Out → Shut Down), running `sudo poweroff`
+in a guest terminal, or just closing the QEMU window.
+
+If the window goes black with "Display output is not active", that's just the
+desktop's screen blanking after idle — move the mouse or press a key to wake it.
+
+The default login is `student` / `student` (auto-login is on, so you land on the
+desktop). Double-click **Course JupyterLab** to start the server.
+
 ## Distribute and import
 
 **arm64 / UTM:** ship `course-arm64.qcow2`. In UTM: New VM, Virtualize, Linux,
