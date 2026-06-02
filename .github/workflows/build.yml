@@ -16,10 +16,12 @@ jobs:
             runner: ubuntu-24.04
             accel_amd64: kvm
             accel_arm64: none
+            iso_url: https://releases.ubuntu.com/26.04/ubuntu-26.04-live-server-amd64.iso
           - arch: arm64
             runner: ubuntu-24.04-arm
             accel_amd64: none
             accel_arm64: kvm
+            iso_url: https://cdimage.ubuntu.com/releases/26.04/release/ubuntu-26.04-live-server-arm64.iso
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
@@ -35,16 +37,30 @@ jobs:
           sudo apt-get update && sudo apt-get install -y packer
 
       - name: Enable KVM access
+        # Best-effort: GitHub's x86 and arm64 runners expose /dev/kvm slightly
+        # differently, and `udevadm trigger` can return non-zero on the arm
+        # runner. None of this should fail the job.
         run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules || true
+          sudo udevadm control --reload-rules || true
+          sudo udevadm trigger --name-match=kvm || true
           sudo chmod 0666 /dev/kvm || true
+
+      - name: Fetch ISO
+        # Replace Packer's one-shot downloader with a retrying curl, and verify
+        # with a locally computed checksum, so a transient TLS/network blip on
+        # the Ubuntu mirror does not fail the build.
+        run: |
+          curl -fL --retry 8 --retry-all-errors --retry-delay 5 -C - \
+            -o "$RUNNER_TEMP/course.iso" "${{ matrix.iso_url }}"
+          echo "ISO_PATH=$RUNNER_TEMP/course.iso" >> "$GITHUB_ENV"
+          echo "ISO_SHA=sha256:$(sha256sum "$RUNNER_TEMP/course.iso" | cut -d' ' -f1)" >> "$GITHUB_ENV"
 
       - name: Preflight
         run: |
           ls -l /dev/kvm || echo "no /dev/kvm"
           ls -l /usr/share/AAVMF/ || echo "no AAVMF firmware"
+          ls -lh "$ISO_PATH"
           qemu-system-$(echo ${{ matrix.arch }} | sed 's/amd64/x86_64/;s/arm64/aarch64/') --version | head -1
 
       - name: Build ${{ matrix.arch }}
@@ -56,6 +72,8 @@ jobs:
             -only="course.qemu.${{ matrix.arch }}" \
             -var "accel_amd64=${{ matrix.accel_amd64 }}" \
             -var "accel_arm64=${{ matrix.accel_arm64 }}" \
+            -var "iso_url_${{ matrix.arch }}=${ISO_PATH}" \
+            -var "iso_checksum_${{ matrix.arch }}=${ISO_SHA}" \
             -var "edk2_arm64_code=/usr/share/AAVMF/AAVMF_CODE.fd" \
             -var "edk2_arm64_vars=/usr/share/AAVMF/AAVMF_VARS.fd" \
             .

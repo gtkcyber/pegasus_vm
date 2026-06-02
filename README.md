@@ -12,6 +12,41 @@ one source of truth.
   `output/amd64/course-amd64.qcow2` plus `course-amd64.ova` (for VirtualBox /
   VMware Fusion).
 
+**Status:** the arm64 image builds and is verified end-to-end (XFCE auto-login
++ working JupyterLab for the `student` user). The amd64 image is built on a
+native x86 runner via the GitHub Actions workflow.
+
+## For students — starting the VM
+
+You were given **one VM file** for your computer. Pick your platform:
+
+### Apple Silicon Mac (M1/M2/M3/M4) — file ends in `.qcow2`
+
+1. Install [UTM](https://mac.getutm.app) (free): `brew install --cask utm`, or
+   download it from the website.
+2. Open UTM → **Create a New Virtual Machine** → **Virtualize** → **Linux**.
+3. Under "Boot ISO Image" leave it empty / skip, finish the wizard, then open
+   the new VM's **Settings → Drives**, delete the empty drive, and **Import** the
+   `course-arm64.qcow2` file you were given.
+4. Click the **▶︎ Play** button to start. (To stop: the desktop menu →
+   **Log Out → Shut Down**, or close the UTM window.)
+
+### Windows, Linux, or Intel Mac — file ends in `.ova`
+
+1. Install [VirtualBox](https://www.virtualbox.org) (free).
+2. **File → Import Appliance…**, select `course-amd64.ova`, click through, and
+   **Import**.
+3. Select the imported VM and click **Start**. (To stop: the desktop menu →
+   **Log Out → Shut Down**, or close the window and choose "Send shutdown signal".)
+
+### Once it boots (either platform)
+
+The VM **auto-logs in** to the desktop — no password needed. (If anything ever
+asks: the login is `student` / `student`.) Double-click the **Course JupyterLab**
+icon on the desktop; a browser window opens with JupyterLab. In a notebook,
+choose the **Course (Python 3.12)** kernel. Your notebooks live in the
+`notebooks` folder in your home directory.
+
 ## The one thing to understand first
 
 Packer boots a real guest to build the image, so each architecture needs a host
