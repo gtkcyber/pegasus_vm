@@ -1,45 +1,30 @@
 name: build-course-vm
 
-# Builds each architecture on a native runner so neither one is emulated.
-# Requires hardware acceleration (/dev/kvm) on the runner; on runners without
-# it, builds fall back to slow TCG emulation. Trigger manually.
+# Builds the amd64 image on an x86 runner (which has /dev/kvm, so the build runs
+# at native speed and finishes in ~25 min). Trigger manually.
+#
+# arm64 is intentionally NOT built here: GitHub's hosted arm64 runners do not
+# expose /dev/kvm, so a Packer/QEMU build there would fall back to slow TCG
+# emulation. Build arm64 locally on an Apple Silicon Mac instead -- `make arm64`
+# uses hvf and is fast (see README).
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: amd64
-            runner: ubuntu-24.04
-            accel_amd64: kvm
-            accel_arm64: none
-            iso_url: https://releases.ubuntu.com/26.04/ubuntu-26.04-live-server-amd64.iso
-          - arch: arm64
-            runner: ubuntu-24.04-arm
-            accel_amd64: none
-            accel_arm64: kvm
-            iso_url: https://cdimage.ubuntu.com/releases/26.04/release/ubuntu-26.04-live-server-arm64.iso
-    runs-on: ${{ matrix.runner }}
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
       - name: Install QEMU + Packer
         run: |
           sudo apt-get update
-          # qemu-efi-aarch64 provides /usr/share/AAVMF/*.fd for the arm64 guest;
-          # ovmf provides x86 UEFI. Both are harmless on the other arch's runner.
-          sudo apt-get install -y qemu-system qemu-utils qemu-efi-aarch64 ovmf
+          sudo apt-get install -y qemu-system-x86 qemu-utils
           curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp.gpg
           echo "deb [signed-by=/usr/share/keyrings/hashicorp.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
           sudo apt-get update && sudo apt-get install -y packer
 
       - name: Enable KVM access
-        # Best-effort: GitHub's x86 and arm64 runners expose /dev/kvm slightly
-        # differently, and `udevadm trigger` can return non-zero on the arm
-        # runner. None of this should fail the job.
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules || true
           sudo udevadm control --reload-rules || true
@@ -52,33 +37,30 @@ jobs:
         # the Ubuntu mirror does not fail the build.
         run: |
           curl -fL --retry 8 --retry-all-errors --retry-delay 5 -C - \
-            -o "$RUNNER_TEMP/course.iso" "${{ matrix.iso_url }}"
+            -o "$RUNNER_TEMP/course.iso" \
+            "https://releases.ubuntu.com/26.04/ubuntu-26.04-live-server-amd64.iso"
           echo "ISO_PATH=$RUNNER_TEMP/course.iso" >> "$GITHUB_ENV"
           echo "ISO_SHA=sha256:$(sha256sum "$RUNNER_TEMP/course.iso" | cut -d' ' -f1)" >> "$GITHUB_ENV"
 
       - name: Preflight
         run: |
           ls -l /dev/kvm || echo "no /dev/kvm"
-          ls -l /usr/share/AAVMF/ || echo "no AAVMF firmware"
           ls -lh "$ISO_PATH"
-          qemu-system-$(echo ${{ matrix.arch }} | sed 's/amd64/x86_64/;s/arm64/aarch64/') --version | head -1
+          qemu-system-x86_64 --version | head -1
 
-      - name: Build ${{ matrix.arch }}
+      - name: Build amd64
         env:
           PACKER_LOG: "1"
         run: |
           packer init .
           packer build \
-            -only="course.qemu.${{ matrix.arch }}" \
-            -var "accel_amd64=${{ matrix.accel_amd64 }}" \
-            -var "accel_arm64=${{ matrix.accel_arm64 }}" \
-            -var "iso_url_${{ matrix.arch }}=${ISO_PATH}" \
-            -var "iso_checksum_${{ matrix.arch }}=${ISO_SHA}" \
-            -var "edk2_arm64_code=/usr/share/AAVMF/AAVMF_CODE.fd" \
-            -var "edk2_arm64_vars=/usr/share/AAVMF/AAVMF_VARS.fd" \
+            -only="course.qemu.amd64" \
+            -var "accel_amd64=kvm" \
+            -var "iso_url_amd64=${ISO_PATH}" \
+            -var "iso_checksum_amd64=${ISO_SHA}" \
             .
 
       - uses: actions/upload-artifact@v4
         with:
-          name: course-vm-${{ matrix.arch }}
-          path: output/${{ matrix.arch }}/*
+          name: course-vm-amd64
+          path: output/amd64/*

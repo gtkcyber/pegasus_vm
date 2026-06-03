@@ -59,8 +59,12 @@ of the same architecture to build at native speed:
 
 The template and provisioning script are shared; only the build host and the
 `accel_*` variables change. Build one target at a time with `-only`. For both
-at native speed, build arm64 on the Mac and amd64 on any x86 box (or use the CI
-workflow, which puts each arch on a matching runner).
+at native speed, build **arm64 on the Mac** (`make arm64`, fast with `hvf`) and
+**amd64 in CI** — the GitHub Actions workflow (`.github/workflows/build.yml`)
+builds amd64 on an x86 runner with KVM in ~25 min and uploads the artifact.
+(arm64 is not built in CI: GitHub's hosted arm64 runners have no `/dev/kvm`, so
+only TCG emulation would be available there — slow and pointless when you have
+an Apple Silicon Mac.)
 
 ## Prerequisites (macOS build host)
 
