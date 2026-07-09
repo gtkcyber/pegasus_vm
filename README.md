@@ -22,7 +22,8 @@ You were given **one VM file** for your computer. Pick your platform:
 
 ### Apple Silicon Mac (M1/M2/M3/M4) — file ends in `.qcow2`
 
-1. Install [UTM](https://mac.getutm.app) (free): `brew install --cask utm`, or
+1. Install homebrew (if you do not already have it): [https://brew.sh/](https://brew.sh/)
+2. Use homebrew to install [UTM](https://mac.getutm.app) (free): `brew install --cask utm`, or
    download it from the website.
 2. Open UTM → **Create a New Virtual Machine** → **Virtualize** → **Linux**.
 3. Under "Boot ISO Image" leave it empty / skip, finish the wizard, then open
