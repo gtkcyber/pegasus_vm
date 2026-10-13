@@ -134,3 +134,8 @@ shared env lives at `/opt/course-env`; in a notebook, pick the
 Edit `scripts/provision-course-vm.sh` (usually just `PKGS`), then rerun
 `make arm64` / `make amd64`. The base install is untouched; only the
 provisioning layer changes, so iteration is quick.
+
+
+---
+
+Built by [GTK Cyber](https://gtkcyber.com), hands-on AI and data science training for security teams.
